@@ -68,7 +68,17 @@ impl<'r> Field<'r> {
         idx: usize,
         content_disposition: ContentDisposition,
     ) -> Self {
-        let content_type = helpers::parse_content_type(&headers);
+        let mut content_type = helpers::parse_content_type(&headers);
+
+        // This is a special check/patch to help Vaultwarden parse the attachments sent by the Mobile clients to be valid.
+        // Because the Mobile Bitwarden clients do not include the Content-Type it gets parsed as a string instead of a bytes.
+        // Issue @ Vaultwarden: https://github.com/dani-garcia/vaultwarden/issues/2644
+        // Issue @ Bitwarden: https://github.com/bitwarden/mobile/issues/2018
+        // Issue @ Rocket: https://github.com/SergioBenitez/Rocket/issues/2299
+        if content_type.is_none() && content_disposition.file_name.is_some() && content_disposition.field_name == Some("data".to_string()) {
+            content_type = Some(mime::APPLICATION_OCTET_STREAM);
+        }
+
         Field {
             state,
             headers,
